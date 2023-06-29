@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Cloudformation template for resources for TravelBuddy app.
+
+Parameters:
+  CodePackageDate:
+    Description: The date of the code package in ms.
+    Type: String
+
+Resources:
+  TravelSectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: travel-buddy-sections-content
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  SectionContentGetterLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: huji-lightricks-travel-buddy-section-getter-lambda-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: travel-buddy-section-content-getter-lambda-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TravelSectionsTable.Arn
+
+  SectionContentGetterLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: travel-buddy-section-content-getter-lambda
+      Handler: lambdas.section_getter.handler
+      Role: !GetAtt SectionContentGetterLambdaRole.Arn
+      Timeout: 25
+      CodeUri:
+        Bucket:
+          Fn::ImportValue: !Sub travel-buddy-code-bucket-name
+        Key: !Sub travel-buddy-${CodePackageDate}-code-package.zip
+      Runtime: python3.8
+      FunctionUrlConfig:
+        AuthType: NONE
+
+  SectionContentGetterLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${SectionContentGetterLambdaFunction}
+      RetentionInDays: 3
+
+  SectionContentUploaderLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: huji-lightricks-travel-buddy-section-uploader-lambda-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: travel-buddy-section-content-uploader-lambda-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:PutItem
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt TravelSectionsTable.Arn
+
+  SectionContentUploaderLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: travel-buddy-section-content-uploader-lambda
+      Handler: lambdas.section_uploader.handler
+      Role: !GetAtt SectionContentUploaderLambdaRole.Arn
+      Timeout: 25
+      CodeUri:
+        Bucket:
+          Fn::ImportValue: !Sub travel-buddy-code-bucket-name
+        Key: !Sub travel-buddy-${CodePackageDate}-code-package.zip
+      Runtime: python3.8
+      FunctionUrlConfig:
+        AuthType: NONE
+
+  SectionContentUploaderLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${SectionContentUploaderLambdaFunction}
+      RetentionInDays: 3
+
+Outputs:
+  SectionContentGetterLambdaURL:
+    Description: The URL of the section content getter lambda
+    Value:
+      Fn::GetAtt: SectionContentGetterLambdaFunctionUrl.FunctionUrl
+    Export:
+      Name: travel-buddy-section-content-getter-lambda
+
+  SectionContentUploaderLambdaURL:
+    Description: The URL of the section content uploader lambda
+    Value:
+      Fn::GetAtt: SectionContentUploaderLambdaFunctionUrl.FunctionUrl
+    Export:
+      Name: travel-buddy-section-content-uploader-lambda

@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Cloudformation template for TravelBuddy app.
+
+Parameters:
+  CodePackageDate:
+    Description: The date of the code package in ms.
+    Type: String
+
+Resources:
+  TravelBuddyCodeBaseS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub travel-buddy-code-bucket
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+
+Outputs:
+  TravelBuddyCodeBaseS3BucketName:
+    Description: Name of code base bucket
+    Value: !Ref TravelBuddyCodeBaseS3Bucket
+    Export:
+      Name: !Sub travel-buddy-code-bucket-name
+
+  TravelBuddyCodeBaseS3BucketArn:
+    Description: ARN of code base bucket
+    Value: !GetAtt TravelBuddyCodeBaseS3Bucket.Arn
+    Export:
+      Name: !Sub travel-buddy-code-bucket-arn
